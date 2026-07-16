@@ -1,0 +1,130 @@
+[project]
+name = "sentinel-detect"
+version = "0.1.0"
+description = "SENTINEL Detect - AI-powered object detection and security analytics platform"
+readme = "README.md"
+authors = [
+    { name = "Ochuko George", email = "georgeochuko7@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "structlog>=24.4",
+    "numpy>=2.1",
+    "python-multipart>=0.0.17",
+    "PyYAML>=6.0",
+    # Image/video decoding is used by every input path (image upload, video
+    # files, webcams, RTSP), not just the vision/inference stack, so it lives
+    # here rather than in the optional 'vision' extra.
+    "opencv-python-headless>=4.10",
+    # Hungarian algorithm (linear_sum_assignment) for IoU-cost track/detection
+    # association in the tracker. No GPU/heavy-ML dependency, so it lives here
+    # rather than the 'vision' extra.
+    "scipy>=1.14",
+    # Async HTTP client for the webhook alert channel.
+    "httpx>=0.27",
+    # Database layer: async SQLAlchemy core ORM + SQLite async driver (the
+    # zero-setup default; asyncpg in the 'postgres' extra provides the
+    # Postgres driver for the same SQLAlchemy models) + Alembic migrations.
+    "sqlalchemy[asyncio]>=2.0",
+    "aiosqlite>=0.20",
+    "alembic>=1.13",
+    # Auth: password hashing + JWT issuance/verification for the API's
+    # authentication layer.
+    "bcrypt>=4.0",
+    "pyjwt>=2.9",
+    # Standard Prometheus text-format metrics for GET /metrics.
+    "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+# Phase 2: model inference backends. Kept optional because these are large
+# (ultralytics pulls in torch/torchvision) and swappable — RT-DETR, ONNX
+# Runtime, and TensorRT backends are alternatives to this same port.
+vision = [
+    "ultralytics>=8.3",
+    "onnxruntime>=1.19",
+]
+# Phase 6: PostgreSQL database driver (SQLite/aiosqlite is the default, always installed)
+postgres = [
+    "asyncpg>=0.30",
+]
+# Development tooling
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7",
+    "mypy>=1.13",
+    "scipy-stubs>=1.14",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+# Alembic-generated scaffolding/migrations follow Alembic's own template
+# conventions (typing.Union, long generated column lists, ...), not ours.
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+
+# Optional, heavyweight 'vision' extra deps. They're imported lazily at
+# runtime (see models/yolo.py) specifically so the rest of the app works
+# without them installed. mypy's view of these modules must not depend on
+# whether the extra happens to be installed in whatever venv is running
+# mypy, so `follow_imports = "skip"` treats them as untyped `Any` in both
+# cases rather than introspecting their (partially-typed) real stubs.
+[[tool.mypy.overrides]]
+module = ["ultralytics.*", "torch.*", "cv2.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src/sentinel_detect"]
+# Two distinct concurrency mechanisms this app's tests actually cross, both
+# needed or coverage silently misses real, executed code without erroring:
+#  - "thread": Starlette's TestClient runs the whole ASGI app on a
+#    background thread via anyio.from_thread.start_blocking_portal.
+#  - "greenlet": SQLAlchemy's async engine bridges each blocking DBAPI call
+#    (aiosqlite/asyncpg) through a greenlet switch (greenlet_spawn) — code
+#    running after an `await session...` resumes on the other side of that
+#    switch, which coverage.py can't follow without this.
+# Confirmed by a direct repro: without "greenlet", a real, executing 404
+# branch in api/routers/cameras.py (proven with a debug print that DID
+# print) was reported as "Missing" — a false negative, not a missing test.
+concurrency = ["thread", "greenlet"]
+
+[tool.uv]
+package = true
+# ultralytics depends on 'opencv-python' (the GUI build), which installs the
+# same `cv2` module as our own 'opencv-python-headless' dependency under a
+# different package name — pip/uv can't see these as alternatives, so having
+# both installed corrupts the venv (uninstalling one deletes files the other
+# still needs). This override makes the 'opencv-python' requirement
+# unsatisfiable-but-harmless (the marker is never true) so uv never installs
+# it; our explicit opencv-python-headless dependency provides `cv2` instead.
+override-dependencies = ["opencv-python; python_version < '0'"]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.1.0",
+]

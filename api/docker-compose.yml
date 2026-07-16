@@ -1,0 +1,50 @@
+# Zero-setup default: `docker compose up --build` runs the API alone
+# against SQLite (the app's own zero-setup default — see docs/architecture.md),
+# no other services required. `.env` is optional (not required to exist —
+# `.dockerignore` keeps it out of the image itself, so all real
+# configuration is real container environment, the same as any other
+# production deployment of this image).
+services:
+  api:
+    build:
+      context: .
+      args:
+        # Override to build with real YOLO inference and/or Postgres
+        # support, e.g.:
+        #   UV_EXTRA_ARGS: "--extra vision --extra postgres"
+        UV_EXTRA_ARGS: ${SENTINEL_UV_EXTRA_ARGS:-}
+    image: sentinel-detect-api:local
+    ports:
+      - "${SENTINEL_PORT:-8000}:8000"
+    env_file:
+      - path: ./.env
+        required: false
+    volumes:
+      # Runtime state (sqlite db, downloaded/uploaded model weights, stored
+      # evidence) — a named bind mount so it survives `docker compose down`.
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # Opt-in Postgres, matching the app's own optional `postgres` extra —
+  # `docker compose --profile postgres up` to include it. Not started by
+  # `docker compose up` alone, so the zero-setup SQLite path stays the
+  # actual default.
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: sentinel
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
