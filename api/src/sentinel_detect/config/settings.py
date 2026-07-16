@@ -132,6 +132,16 @@ class SecuritySettings(BaseModel):
     )
     rate_limit_per_minute: int = Field(default=120, ge=1)
 
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        description=(
+            "Browser origins allowed to call this API cross-origin (e.g. the "
+            "sentinel-detect console at http://localhost:3000). Empty disables "
+            "CORSMiddleware entirely — server-to-server callers are never "
+            "subject to CORS regardless of this setting."
+        ),
+    )
+
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str | None = Field(
         default=None,

@@ -249,6 +249,11 @@ ADMIN-equivalent. `/detect/image`, `/detect/video`, `/alerts`, `/ws/alerts`,
 for why — but `/detect/stream` and `/ws/stream/{camera_id}` (Phase 8) *are*
 gated, matching the rest of the administrative surface.
 
+CORS is enabled for `SENTINEL_SECURITY__CORS_ORIGINS` (default
+`http://localhost:3000`, the `client/` console's dev server) so a
+browser-based client can call this API cross-origin; set to `[]` to
+disable it entirely.
+
 ## Database
 
 SQLite (`./data/sentinel.db`) is created automatically on first startup —

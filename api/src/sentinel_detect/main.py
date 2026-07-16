@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from sentinel_detect.alerts import (
     AlertResources,
@@ -170,6 +171,18 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(MetricsMiddleware)
     app.add_middleware(RateLimitMiddleware, settings=settings.security)
+    # Added last so it's outermost (Starlette wraps in reverse add order) —
+    # CORS headers must reach every response, including a 429 from
+    # RateLimitMiddleware or an error from MetricsMiddleware, or the browser
+    # reports a misleading CORS failure instead of the real status code.
+    if settings.security.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.security.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     app.include_router(health.router)
     app.include_router(metrics.router)

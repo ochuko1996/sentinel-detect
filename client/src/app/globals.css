@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #07090a;
+  color: #e6e9e0;
+  font-family: var(--font-mono), monospace;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: #ffb000;
+  color: #07090a;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0e1310;
+}
+::-webkit-scrollbar-thumb {
+  background: #263029;
+  border: 2px solid #0e1310;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ffb000;
+}
+
+/* Film-grain noise overlay, fixed to viewport, non-interactive. */
+.grain-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Vignette to focus attention toward center, standard on ops-console UIs. */
+.vignette-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+.text-glow-amber {
+  text-shadow: 0 0 12px rgba(255, 176, 0, 0.55);
+}
+
+.border-dash {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(178, 196, 178, 0.35) 0,
+    rgba(178, 196, 178, 0.35) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  height: 1px;
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.caret::after {
+  content: "_";
+  animation: caret-blink 1s steps(1) infinite;
+  color: #ffb000;
+}

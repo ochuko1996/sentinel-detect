@@ -817,15 +817,23 @@ currently travel embedded in a `Camera`), refresh tokens, and per-API-key
 management/rotation are reasonable future asks beyond what's been built so
 far.
 
-**No CORS middleware is configured.** Every integration test and every
-live-boot verification in this document talks to the API directly (server
-to server, or `curl`/a Python client), not from a browser page served on a
-different origin — so this gap has never actually blocked anything built
-so far. A browser-based client (there's an empty `client/` directory
-alongside this API, reserved for exactly that) would need
-`fastapi.middleware.cors.CORSMiddleware` added to `create_app()` with an
-explicit allowed-origins list before it could call this API cross-origin.
-Flagged here rather than silently discovered later.
+**CORS.** Flagged in Phase 12 as a gap ("no browser client exists yet to
+need it") and closed once `client/` (the sentinel-detect-console Next.js
+app) actually became that client. `CORSMiddleware` is added in
+`create_app()` gated on `SecuritySettings.cors_origins` (default
+`["http://localhost:3000"]`; an empty list disables it entirely — server-
+to-server callers were never subject to CORS regardless). **Middleware
+order matters and was verified, not assumed:** Starlette wraps middleware
+in *reverse* `add_middleware()` order (confirmed with a small instrumented
+repro before touching real code — the last one added is outermost), so
+`CORSMiddleware` is added *after* `MetricsMiddleware`/`RateLimitMiddleware`
+to wrap them. Getting this backwards is a real, easy-to-miss failure mode:
+a `429` from `RateLimitMiddleware` short-circuiting *inside* an inner CORS
+layer would reach the browser with no `Access-Control-Allow-Origin`
+header, which shows up to a developer as a confusing "CORS error" masking
+the real rate-limit response — `tests/integration/test_cors.py` asserts a
+`429` still carries the header, specifically to catch a future regression
+on this exact point.
 
 ## Verified — Phase 1
 
